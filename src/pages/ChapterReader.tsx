@@ -8,10 +8,7 @@ import {
   Share2, 
   Copy, 
   Download,
-  Play,
-  Pause,
   Volume2,
-  Bookmark,
   Check,
   Minus,
   Plus,
@@ -19,9 +16,8 @@ import {
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { useApp } from '@/contexts/AppContext';
-import { allScriptures, Chapter, Verse } from '@/data/scriptures';
-import { useGitaChapters, useGitaChapterVerses } from '@/hooks/useGitaData';
-import { gitaChaptersData } from '@/lib/api/gitaApi';
+import { allScriptures } from '@/data/scriptures';
+import { useScriptureChapters, useScriptureVerses } from '@/hooks/useScriptureData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -41,23 +37,18 @@ export default function ChapterReader() {
   const scripture = allScriptures.find(s => s.slug === slug);
   const chapterNumber = parseInt(chapterNum || '1');
   
-  // For Bhagavad Gita, use API data
-  const isGita = slug === 'bhagavad-gita';
-  const { chapters: gitaChapters } = useGitaChapters();
-  const { verses: apiVerses, isLoading: versesLoading, error: versesError } = useGitaChapterVerses(
-    isGita ? chapterNumber : 0
+  // Use unified hooks for all scriptures
+  const { chapters: allChapters } = useScriptureChapters(slug || '');
+  const { verses: loadedVerses, isLoading: versesLoading, error: versesError } = useScriptureVerses(
+    slug || '', 
+    chapterNumber
   );
 
-  // Get chapter data based on scripture type
-  const chapter = isGita 
-    ? gitaChapters.find(c => c.number === chapterNumber)
-    : scripture?.chapters.find(c => c.number === chapterNumber);
+  // Get chapter data
+  const chapter = allChapters.find(c => c.number === chapterNumber);
 
-  // Get all chapters for navigation
-  const allChapters = isGita ? gitaChapters : (scripture?.chapters || []);
-
-  // Get verses - from API for Gita, from static data for others
-  const verses = isGita ? apiVerses : (chapter?.verses || []);
+  // Get verses from hook
+  const verses = loadedVerses;
 
   // Scroll progress
   useEffect(() => {
@@ -262,7 +253,7 @@ export default function ChapterReader() {
             </div>
 
             {/* Loading State */}
-            {versesLoading && isGita && (
+            {versesLoading && (
               <div className="flex flex-col items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
                 <p className="text-muted-foreground">{t.loading}</p>
@@ -270,7 +261,7 @@ export default function ChapterReader() {
             )}
 
             {/* Error State */}
-            {versesError && isGita && (
+            {versesError && (
               <div className="text-center py-20">
                 <p className="text-destructive mb-4">{t.error}</p>
                 <Button onClick={() => window.location.reload()}>

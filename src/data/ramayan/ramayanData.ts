@@ -125,7 +125,7 @@ export const ramayanVerses: { [key: number]: any[] } = {
       sarga: 1,
       verse: 4,
       sanskrit: 'आत्मवान्को जितक्रोधो द्युतिमान्कोऽनसूयकः ।\nकस्य बिभ्यति देवाश्च जातरोषस्य संयुगे ॥',
-      transliteration: 'ātmavānko jitakrodho dyutimānko'nasūyakaḥ |\nkasya bibhyati devāśca jātaroṣasya saṃyuge ||',
+      transliteration: "ātmavānko jitakrodho dyutimānko'nasūyakaḥ |\\nkasya bibhyati devāśca jātaroṣasya saṃyuge ||",
       translations: {
         en: 'Who has self-control? Who has conquered anger? Who is radiant? Who is free from envy? Of whom are even the gods afraid when he is enraged in battle?',
         hi: 'कौन आत्मवान है? किसने क्रोध को जीता है? कौन तेजस्वी है? कौन निर्मत्सर है? युद्ध में रुष्ट होने पर किससे देवता भी डरते हैं?'
@@ -140,7 +140,7 @@ export const ramayanVerses: { [key: number]: any[] } = {
       sarga: 1,
       verse: 5,
       sanskrit: 'एतदिच्छाम्यहं श्रोतुं परं कौतूहलं हि मे ।\nमहर्षे त्वं समर्थोऽसि ज्ञातुमेवंविधं नरम् ॥',
-      transliteration: 'etadicchāmyahaṃ śrotuṃ paraṃ kautūhalaṃ hi me |\nmaharṣe tvaṃ samartho'si jñātumevaṃvidhaṃ naram ||',
+      transliteration: "etadicchāmyahaṃ śrotuṃ paraṃ kautūhalaṃ hi me |\\nmaharṣe tvaṃ samartho'si jñātumevaṃvidhaṃ naram ||",
       translations: {
         en: 'I wish to hear about such a person. I have great curiosity. O great sage, you are capable of knowing such a man.',
         hi: 'मैं ऐसे व्यक्ति के बारे में सुनना चाहता हूँ। मुझे बड़ी जिज्ञासा है। हे महर्षि, आप ऐसे मनुष्य को जानने में समर्थ हैं।'
