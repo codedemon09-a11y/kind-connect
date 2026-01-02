@@ -3,7 +3,7 @@ import { ArrowLeft, BookOpen, Clock, Download, Share2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { useApp } from '@/contexts/AppContext';
 import { allScriptures, scriptureCategories } from '@/data/scriptures';
-import { useGitaChapters } from '@/hooks/useGitaData';
+import { useScriptureChapters } from '@/hooks/useScriptureData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,9 +14,8 @@ export default function ScriptureDetail() {
   
   const scripture = allScriptures.find(s => s.slug === slug);
   
-  // For Bhagavad Gita, use API-based chapters
-  const isGita = slug === 'bhagavad-gita';
-  const { chapters: gitaChapters } = useGitaChapters();
+  // Use unified hook for all scriptures
+  const { chapters: scriptureChapters } = useScriptureChapters(slug || '');
 
   if (!scripture) {
     return (
@@ -35,8 +34,8 @@ export default function ScriptureDetail() {
     );
   }
 
-  // Use API chapters for Gita, static chapters for others
-  const chapters = isGita ? gitaChapters : scripture.chapters;
+  // Use unified chapters from hook, fallback to static data
+  const chapters = scriptureChapters.length > 0 ? scriptureChapters : scripture.chapters;
 
   const content = {
     en: {
@@ -114,7 +113,7 @@ export default function ScriptureDetail() {
               <div className="flex flex-wrap items-center gap-6 mb-8">
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-primary" />
-                  <span className="font-semibold">{isGita ? 18 : scripture.chapterCount}</span>
+                  <span className="font-semibold">{chapters.length || scripture.chapterCount}</span>
                   <span className="text-muted-foreground">{t.chapters}</span>
                 </div>
                 <div className="flex items-center gap-2">
