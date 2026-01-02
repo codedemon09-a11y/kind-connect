@@ -14,11 +14,14 @@ import {
   Bookmark,
   Check,
   Minus,
-  Plus
+  Plus,
+  Loader2
 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { useApp } from '@/contexts/AppContext';
 import { allScriptures, Chapter, Verse } from '@/data/scriptures';
+import { useGitaChapters, useGitaChapterVerses } from '@/hooks/useGitaData';
+import { gitaChaptersData } from '@/lib/api/gitaApi';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -37,7 +40,24 @@ export default function ChapterReader() {
 
   const scripture = allScriptures.find(s => s.slug === slug);
   const chapterNumber = parseInt(chapterNum || '1');
-  const chapter = scripture?.chapters.find(c => c.number === chapterNumber);
+  
+  // For Bhagavad Gita, use API data
+  const isGita = slug === 'bhagavad-gita';
+  const { chapters: gitaChapters } = useGitaChapters();
+  const { verses: apiVerses, isLoading: versesLoading, error: versesError } = useGitaChapterVerses(
+    isGita ? chapterNumber : 0
+  );
+
+  // Get chapter data based on scripture type
+  const chapter = isGita 
+    ? gitaChapters.find(c => c.number === chapterNumber)
+    : scripture?.chapters.find(c => c.number === chapterNumber);
+
+  // Get all chapters for navigation
+  const allChapters = isGita ? gitaChapters : (scripture?.chapters || []);
+
+  // Get verses - from API for Gita, from static data for others
+  const verses = isGita ? apiVerses : (chapter?.verses || []);
 
   // Scroll progress
   useEffect(() => {
@@ -68,23 +88,23 @@ export default function ChapterReader() {
     );
   }
 
-  const prevChapter = scripture.chapters.find(c => c.number === chapterNumber - 1);
-  const nextChapter = scripture.chapters.find(c => c.number === chapterNumber + 1);
+  const prevChapter = allChapters.find(c => c.number === chapterNumber - 1);
+  const nextChapter = allChapters.find(c => c.number === chapterNumber + 1);
 
-  const handleCopyVerse = (verse: Verse) => {
-    const text = `${verse.sanskrit}\n\n${verse.transliteration}\n\n${verse.translations[language as 'en' | 'hi'] || verse.translations.en}\n\n— ${scripture.title.en}, Chapter ${verse.chapter}, Verse ${verse.verse}`;
+  const handleCopyVerse = (verse: any) => {
+    const text = `${verse.sanskrit}\n\n${verse.transliteration}\n\n${verse.translations?.[language as 'en' | 'hi'] || verse.translations?.en || ''}\n\n— ${scripture.title.en}, Chapter ${verse.chapter}, Verse ${verse.verse}`;
     navigator.clipboard.writeText(text);
     setCopiedVerse(verse.id);
     toast({ title: language === 'hi' ? 'श्लोक कॉपी हो गया!' : 'Verse copied!' });
     setTimeout(() => setCopiedVerse(null), 2000);
   };
 
-  const handleShareVerse = (verse: Verse) => {
+  const handleShareVerse = (verse: any) => {
     const url = `${window.location.origin}/scripture/${slug}/chapter/${chapterNumber}#verse-${verse.verse}`;
     if (navigator.share) {
       navigator.share({
         title: `${scripture.title.en} - Chapter ${verse.chapter}, Verse ${verse.verse}`,
-        text: verse.translations.en,
+        text: verse.translations?.en || '',
         url
       });
     } else {
@@ -93,7 +113,7 @@ export default function ChapterReader() {
     }
   };
 
-  const handleBookmark = (verse: Verse) => {
+  const handleBookmark = (verse: any) => {
     if (isBookmarked(verse.id)) {
       removeBookmark(verse.id);
       toast({ title: language === 'hi' ? 'बुकमार्क हटा दिया गया' : 'Bookmark removed' });
@@ -117,6 +137,8 @@ export default function ChapterReader() {
       next: 'Next',
       verses: 'verses',
       backToScripture: 'Back to',
+      loading: 'Loading verses...',
+      error: 'Failed to load verses. Please try again.',
     },
     hi: {
       chapter: 'अध्याय',
@@ -127,6 +149,8 @@ export default function ChapterReader() {
       next: 'अगला',
       verses: 'श्लोक',
       backToScripture: 'वापस',
+      loading: 'श्लोक लोड हो रहे हैं...',
+      error: 'श्लोक लोड करने में विफल। कृपया पुनः प्रयास करें।',
     }
   };
 
@@ -196,7 +220,7 @@ export default function ChapterReader() {
             <div className="sticky top-40">
               <h3 className="font-display font-semibold mb-4">{t.chapter}s</h3>
               <div className="space-y-1 max-h-[60vh] overflow-y-auto pr-2">
-                {scripture.chapters.map(ch => (
+                {allChapters.map(ch => (
                   <Link
                     key={ch.id}
                     to={`/scripture/${scripture.slug}/chapter/${ch.number}`}
@@ -237,105 +261,127 @@ export default function ChapterReader() {
               </div>
             </div>
 
+            {/* Loading State */}
+            {versesLoading && isGita && (
+              <div className="flex flex-col items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-primary mb-4" />
+                <p className="text-muted-foreground">{t.loading}</p>
+              </div>
+            )}
+
+            {/* Error State */}
+            {versesError && isGita && (
+              <div className="text-center py-20">
+                <p className="text-destructive mb-4">{t.error}</p>
+                <Button onClick={() => window.location.reload()}>
+                  {language === 'hi' ? 'पुनः प्रयास करें' : 'Try Again'}
+                </Button>
+              </div>
+            )}
+
             {/* Verses */}
-            <div className="space-y-8">
-              {chapter.verses.map((verse) => (
-                <article 
-                  key={verse.id}
-                  id={`verse-${verse.verse}`}
-                  className={cn(
-                    "card-spiritual p-6 md:p-8 transition-all",
-                    selectedVerse === verse.id && "ring-2 ring-primary"
-                  )}
-                  onClick={() => setSelectedVerse(verse.id)}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <Badge variant="secondary">{t.verse} {verse.verse}</Badge>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); handleBookmark(verse); }}
-                        className={cn(isBookmarked(verse.id) && "text-primary")}
-                      >
-                        <Heart className={cn("w-4 h-4", isBookmarked(verse.id) && "fill-primary")} />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); handleCopyVerse(verse); }}
-                      >
-                        {copiedVerse === verse.id ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => { e.stopPropagation(); handleShareVerse(verse); }}
-                      >
-                        <Share2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Sanskrit */}
-                  <blockquote className="verse-highlight mb-6">
-                    <p 
-                      className="font-sanskrit text-foreground leading-loose"
-                      style={{ fontSize: `${fontSize + 4}px` }}
-                    >
-                      {verse.sanskrit}
-                    </p>
-                  </blockquote>
-
-                  {/* Transliteration */}
-                  <p 
-                    className="text-muted-foreground italic mb-6"
-                    style={{ fontSize: `${fontSize}px` }}
+            {!versesLoading && !versesError && (
+              <div className="space-y-8">
+                {verses.map((verse: any) => (
+                  <article 
+                    key={verse.id}
+                    id={`verse-${verse.verse}`}
+                    className={cn(
+                      "card-spiritual p-6 md:p-8 transition-all",
+                      selectedVerse === verse.id && "ring-2 ring-primary"
+                    )}
+                    onClick={() => setSelectedVerse(verse.id)}
                   >
-                    {verse.transliteration}
-                  </p>
+                    <div className="flex items-center justify-between mb-4">
+                      <Badge variant="secondary">{t.verse} {verse.verse}</Badge>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleBookmark(verse); }}
+                          className={cn(isBookmarked(verse.id) && "text-primary")}
+                        >
+                          <Heart className={cn("w-4 h-4", isBookmarked(verse.id) && "fill-primary")} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleCopyVerse(verse); }}
+                        >
+                          {copiedVerse === verse.id ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => { e.stopPropagation(); handleShareVerse(verse); }}
+                        >
+                          <Share2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
 
-                  <Separator className="my-6" />
+                    {/* Sanskrit */}
+                    <blockquote className="verse-highlight mb-6">
+                      <p 
+                        className="font-sanskrit text-foreground leading-loose"
+                        style={{ fontSize: `${fontSize + 4}px` }}
+                      >
+                        {verse.sanskrit}
+                      </p>
+                    </blockquote>
 
-                  {/* Translation */}
-                  <div className="mb-6">
-                    <h4 className="font-display font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-3">
-                      {t.translation}
-                    </h4>
+                    {/* Transliteration */}
                     <p 
-                      className="text-foreground leading-relaxed"
+                      className="text-muted-foreground italic mb-6"
                       style={{ fontSize: `${fontSize}px` }}
                     >
-                      {verse.translations[language as 'en' | 'hi'] || verse.translations.en}
+                      {verse.transliteration}
                     </p>
-                  </div>
 
-                  {/* Meaning */}
-                  <div className="bg-muted/30 rounded-lg p-4">
-                    <h4 className="font-display font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-3">
-                      {t.meaning}
-                    </h4>
-                    <p 
-                      className="text-muted-foreground"
-                      style={{ fontSize: `${fontSize - 1}px` }}
-                    >
-                      {verse.meaning[language as 'en' | 'hi'] || verse.meaning.en}
-                    </p>
-                  </div>
+                    <Separator className="my-6" />
 
-                  {/* Keywords */}
-                  {verse.keywords.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-4">
-                      {verse.keywords.map(keyword => (
-                        <Badge key={keyword} variant="outline" className="text-xs">
-                          {keyword}
-                        </Badge>
-                      ))}
+                    {/* Translation */}
+                    <div className="mb-6">
+                      <h4 className="font-display font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-3">
+                        {t.translation}
+                      </h4>
+                      <p 
+                        className="text-foreground leading-relaxed"
+                        style={{ fontSize: `${fontSize}px` }}
+                      >
+                        {verse.translations?.[language as 'en' | 'hi'] || verse.translations?.en || ''}
+                      </p>
                     </div>
-                  )}
-                </article>
-              ))}
-            </div>
+
+                    {/* Meaning - only show if available */}
+                    {(verse.meaning?.[language as 'en' | 'hi'] || verse.meaning?.en) && (
+                      <div className="bg-muted/30 rounded-lg p-4">
+                        <h4 className="font-display font-semibold text-sm text-muted-foreground uppercase tracking-wider mb-3">
+                          {t.meaning}
+                        </h4>
+                        <p 
+                          className="text-muted-foreground"
+                          style={{ fontSize: `${fontSize - 1}px` }}
+                        >
+                          {verse.meaning?.[language as 'en' | 'hi'] || verse.meaning?.en}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Keywords */}
+                    {verse.keywords && verse.keywords.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-4">
+                        {verse.keywords.map((keyword: string) => (
+                          <Badge key={keyword} variant="outline" className="text-xs">
+                            {keyword}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </article>
+                ))}
+              </div>
+            )}
 
             {/* Chapter Navigation */}
             <div className="flex items-center justify-between mt-12 pt-8 border-t border-border">

@@ -3,6 +3,7 @@ import { ArrowLeft, BookOpen, Clock, Download, Share2 } from 'lucide-react';
 import { Layout } from '@/components/layout/Layout';
 import { useApp } from '@/contexts/AppContext';
 import { allScriptures, scriptureCategories } from '@/data/scriptures';
+import { useGitaChapters } from '@/hooks/useGitaData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,10 @@ export default function ScriptureDetail() {
   const { language } = useApp();
   
   const scripture = allScriptures.find(s => s.slug === slug);
+  
+  // For Bhagavad Gita, use API-based chapters
+  const isGita = slug === 'bhagavad-gita';
+  const { chapters: gitaChapters } = useGitaChapters();
 
   if (!scripture) {
     return (
@@ -29,6 +34,9 @@ export default function ScriptureDetail() {
       </Layout>
     );
   }
+
+  // Use API chapters for Gita, static chapters for others
+  const chapters = isGita ? gitaChapters : scripture.chapters;
 
   const content = {
     en: {
@@ -106,7 +114,7 @@ export default function ScriptureDetail() {
               <div className="flex flex-wrap items-center gap-6 mb-8">
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-primary" />
-                  <span className="font-semibold">{scripture.chapterCount}</span>
+                  <span className="font-semibold">{isGita ? 18 : scripture.chapterCount}</span>
                   <span className="text-muted-foreground">{t.chapters}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -117,7 +125,7 @@ export default function ScriptureDetail() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                {scripture.chapters.length > 0 && (
+                {chapters.length > 0 && (
                   <Link to={`/scripture/${scripture.slug}/chapter/1`}>
                     <Button className="btn-spiritual">
                       <BookOpen className="w-4 h-4 mr-2" />
@@ -158,9 +166,9 @@ export default function ScriptureDetail() {
         <div className="container px-4">
           <h2 className="font-display text-2xl md:text-3xl font-bold mb-8">{t.tableOfContents}</h2>
           
-          {scripture.chapters.length > 0 ? (
+          {chapters.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {scripture.chapters.map((chapter) => (
+              {chapters.map((chapter) => (
                 <Link key={chapter.id} to={`/scripture/${scripture.slug}/chapter/${chapter.number}`}>
                   <Card className="card-spiritual card-hover h-full">
                     <CardContent className="p-6">
